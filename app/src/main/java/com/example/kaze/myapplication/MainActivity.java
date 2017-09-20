@@ -1,102 +1,118 @@
 package com.example.kaze.myapplication;
 
+import android.app.Activity;
+import android.graphics.Color;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.TextView;
 
-public class MainActivity extends AppCompatActivity {
+import com.tokenautocomplete.FilteredArrayAdapter;
+import com.tokenautocomplete.TokenCompleteTextView;
 
-    private static boolean isSend = false;
+import java.util.List;
+import java.util.Random;
+
+public class MainActivity extends Activity implements TokenCompleteTextView.TokenListener<Person> {
+    ContactsCompletionView completionView;
+    Person[] people;
+    ArrayAdapter<Person> adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
+        people = new Person[]{
+                new Person("Marshall Weir", "marshall@example.com"),
+                new Person("Margaret Smith", "margaret@example.com"),
+                new Person("Max Jordan", "max@example.com"),
+                new Person("Meg Peterson", "meg@example.com"),
+                new Person("Amanda Johnson", "amanda@example.com"),
+                new Person("Terry Anderson", "terry@example.com"),
+                new Person("Siniša Damianos Pilirani Karoline Slootmaekers",
+                        "siniša_damianos_pilirani_karoline_slootmaekers@example.com")
+        };
+
+        adapter = new FilteredArrayAdapter<Person>(this, R.layout.person_layout, people) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                if (convertView == null) {
+
+                    LayoutInflater l = (LayoutInflater)getContext().getSystemService(Activity.LAYOUT_INFLATER_SERVICE);
+                    convertView = l.inflate(R.layout.person_layout, parent, false);
+                }
+
+                Person p = getItem(position);
+                ((TextView)convertView.findViewById(R.id.name)).setText(p.getName());
+                ((TextView)convertView.findViewById(R.id.email)).setText(p.getEmail());
+
+                return convertView;
+            }
+
+            @Override
+            protected boolean keepObject(Person person, String mask) {
+                mask = mask.toLowerCase();
+                return person.getName().toLowerCase().startsWith(mask) || person.getEmail().toLowerCase().startsWith(mask);
+            }
+        };
+
+        completionView = (ContactsCompletionView)findViewById(R.id.searchView);
+        completionView.setAdapter(adapter);
+        completionView.setTokenListener(this);
+        completionView.setTokenClickStyle(TokenCompleteTextView.TokenClickStyle.Select);
+
+
+        if (savedInstanceState == null) {
+            completionView.setPrefix("To: " + Color.parseColor("blue"));
+            completionView.addObject(people[0]);
+            completionView.addObject(people[1]);
+        }
+
+        Button removeButton = (Button)findViewById(R.id.removeButton);
+        removeButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
-            }
-        });
-
-        final Button btn = (Button) findViewById(R.id.sendMail);
-        btn.setOnClickListener(new View.OnClickListener() {
-
-            @Override
-            public void onClick(View v) {
-                EditText email = (EditText) findViewById(R.id.emailText);
-                if (!isSend) {
-                    System.out.println("??????????????????????");
-                    thread.start();
-                } else {
-                    Toast.makeText(MainActivity.this, "邮件已发送", Toast.LENGTH_SHORT).show();
+                List<Person> people = completionView.getObjects();
+                if (people.size() > 0) {
+                    completionView.removeObject(people.get(people.size() - 1));
                 }
             }
         });
-    }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-
-    public static Thread thread = new Thread(new Runnable() {
-
-        @Override
-        public void run() {
-            //这个类主要是设置邮件
-            MultiMailsender.MultiMailSenderInfo mailInfo = new MultiMailsender.MultiMailSenderInfo();
-            mailInfo.setMailServerHost("smtp.163.com");
-            mailInfo.setMailServerPort("25");
-            mailInfo.setValidate(true);
-            mailInfo.setUserName("pwq296306654@163.com");
-            mailInfo.setPassword("pwq950317"); //许多邮箱使用smtp服务登录第三方软件需要使用授权码而不是密码
-            mailInfo.setFromAddress("pwq296306654@163.com");
-            mailInfo.setToAddress("296306654@qq.com");
-            mailInfo.setSubject("test");
-            mailInfo.setContent("test content");
-            //这个类主要来发送邮件
-            boolean isSuccess = false;
-            SingleMailsender sms = new SingleMailsender();
-//            isSuccess  = sms.sendTextMail(mailInfo);//发送文体格式
-//            MultiMailsender.sendHtmlMail(mailInfo);//发送html格式
-            isSuccess = sms.sendTextMail(mailInfo);//
-            System.out.println(isSuccess);
-            if (isSuccess) {
-                isSend = true;
+        Button addButton = (Button)findViewById(R.id.addButton);
+        addButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Random rand = new Random();
+                completionView.addObject(people[rand.nextInt(people.length)]);
             }
-        }
-    });
+        });
+    }
 
+    private void updateTokenConfirmation() {
+        StringBuilder sb = new StringBuilder("Current tokens:\n");
+        for (Object token: completionView.getObjects()) {
+            sb.append(token.toString());
+            sb.append("\n");
+        }
+
+        ((TextView)findViewById(R.id.tokens)).setText(sb);
+    }
+
+
+    @Override
+    public void onTokenAdded(Person token) {
+        ((TextView)findViewById(R.id.lastEvent)).setText("Added: " + token);
+        updateTokenConfirmation();
+    }
+
+    @Override
+    public void onTokenRemoved(Person token) {
+        ((TextView)findViewById(R.id.lastEvent)).setText("Removed: " + token);
+        updateTokenConfirmation();
+    }
 }
